@@ -40,6 +40,8 @@
 (clojure.pprint/pprint config1)
 (clojure.pprint/pprint config2)
 
+; OPTIONAL (but nice for sure!)
+
 ; Add a schema to check the shape of the data - entirely optional
 ; can be added as you go along or after the fact
 
@@ -57,6 +59,9 @@
 
 ; Run some checks on the schema
 ; Can be added as needed in dev and / or prod to check the data against the schemas
+
+;(s/defn configurator [model :- model option :- option])
+;(s/defn option-configurator [model :- model option :- option mapping-fn :- (s/fn-schema configurator)])
 
 (s/validate engine diesel-engine)
 (s/validate engine petrol-engine)
