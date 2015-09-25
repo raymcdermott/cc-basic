@@ -10,6 +10,7 @@
 ; sample colours
 (def standard-grey {:name "Standard Grey" :rgb {:red 142 :green 142 :blue 142} :hex 0x8E8E8E})
 (def sunrise-red {:name "Sunrise Red" :rgb {:red 255 :green 48 :blue 48} :hex 0xFF3030})
+(def sunset-red (assoc sunrise-red :name "SunSet Red"))
 
 ; base model
 (def base-diesel {:name "Base Model Diesel" :engine diesel-engine :colour standard-grey})
@@ -18,10 +19,10 @@
 (def sports-option {:name "Sports Petrol" :engine petrol-engine :colour sunrise-red})
 
 (def diesel-sports-option {:name       "Sports Diesel"
-                           :colour     sunrise-red
+                           :color     sunset-red
                            :mapping-fn (fn [model option]
-                                         (println "In diesel-sports-option merge")
-                                         (merge model option))}) ; OK, we sneak in a small anonymous function
+                                         "To demo that we can handle odd mappings (color -> colour) as well as the general case"
+                                         (assoc model :name (:name option) :colour (:color option)))})
 
 ; CODE
 (defn configure
@@ -67,7 +68,7 @@
 (s/validate model base-diesel)
 
 (s/validate option sports-option)
-(s/validate option diesel-sports-option)
+(s/validate option diesel-sports-option)                       ; this fails on the color .. but we have a mapper!
 
 ; we can also run this in production rather than the raw function
 (s/defn configurator [model :- model option :- option]
