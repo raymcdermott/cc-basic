@@ -37,12 +37,12 @@
 (defmacro defvalid
   "Generates a rule to remove the boiler plate of testing"
   [scope-name]
-  (let [sym-scope# (symbol scope-name)
-        possible-scopes# (symbol (str "possible-" scope-name "s"))
-        q-scope# (symbol (str "?" scope-name))
-        doc# (str "rule generated for " scope-name)]
+  `(let [sym-scope# (symbol scope-name)
+         possible-scopes# (symbol (str "possible-" scope-name "s"))
+         q-scope# (symbol (str "?" scope-name))
+         doc# (str "rule generated for " scope-name)]
 
-    `(defrule sym-scope#
+     (defrule sym-scope#
               doc#
               [?suffix <- Suffix (not (contains? possible-scopes# ~@scope-name))
                (== ?model model)
