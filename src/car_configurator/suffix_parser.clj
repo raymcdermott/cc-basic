@@ -1,8 +1,7 @@
 (ns car-configurator.suffix-parser
   (:refer-clojure :exclude [==])
   (:require [clara.rules.accumulators :as acc]
-            [clara.rules :refer :all])
-  (:import (clojure.lang PersistentHashSet)))
+            [clara.rules :refer :all]))
 
 ; get all the models / ssn / kata combinations
 
@@ -17,42 +16,77 @@
 
 ; Clara accumulators are for testing collections
 
-;(defrecord Transmission [transmission])
+(defrecord ValidationError [field message])
 
-(defrecord Suffix [model engine transmission colour])
+(defrecord Suffix [model fuel transmission colour])
 
-(defrule get-model-transmissions
-         [?transmissions <- (acc/distinct :transmission) :from [Suffix]]
+; this is what could come from a DB
+(def somename-suffixes [{:model :somename :fuel :diesel :transmission :automatic :colour :black}
+                        {:model :somename :fuel :diesel :transmission :manual :colour :black}
+                        {:model :somename :fuel :petrol :transmission :manual :colour :black}
+                        {:model :somename :fuel :diesel :transmission :automatic :colour :red}
+                        {:model :somename :fuel :diesel :transmission :manual :colour :red}])
+
+(def possible-fuels (set (map #(:fuel %) somename-suffixes)))
+(def possible-colours (set (map #(:colour %) somename-suffixes)))
+(def possible-transmissions (set (map #(:transmission %) somename-suffixes)))
+
+; also add it as 'good' data into the fact space
+(def suffixes (map #(->Suffix (:model %) (:fuel %) (:transmission %) (:colour %)) somename-suffixes))
+
+(defmacro defvalid
+  "Generates a rule to remove the boiler plate of testing"
+  [scope-name]
+  (let [sym-scope# (symbol scope-name)
+        possible-scopes# (symbol (str "possible-" scope-name "s"))
+        q-scope# (symbol (str "?" scope-name))
+        doc# (str "rule generated for " scope-name)]
+
+    `(defrule sym-scope#
+              doc#
+              [?suffix <- Suffix (not (contains? possible-scopes# ~@scope-name))
+               (== ?model model)
+               (== q-scope# ~@scope-name)]
+              =>
+              (println "fail on" q-scope# "for model" ?model "on suffix" ?suffix))))
+
+
+; if this is a pattern, maybe myFirstMacro ;-) ... see above
+(defrule valid-fuel
+         "Transmissions must be in the allowed set"
+         [?suffix <- Suffix (not (contains? possible-fuels fuel))
+          (== ?model model)
+          (== ?fuel fuel)]
          =>
-         (insert! ?transmissions))
+         (println "fail on" ?fuel "for model" ?model "on suffix" ?suffix))
 
-(defquery check-transmissions []
-          [?transmission <- PersistentHashSet])
+(defrule valid-colours
+         "Transmissions must be in the allowed set"
+         [?suffix <- Suffix (not (contains? possible-colours colour))
+          (== ?model model)
+          (== ?colour colour)]
+         =>
+         (println "fail on" ?colour "for model" ?model "on suffix" ?suffix))
 
-(defn validate! [session]
-  (doseq [result (query session check-transmissions)]
-    (println "Transmission" (vals result)))
-  session)
+(defrule valid-transmission
+         "Transmissions must be in the allowed set"
+         [?suffix <- Suffix (not (contains? possible-transmissions transmission))
+          (== ?model model)
+          (== ?transmission transmission)]
+         =>
+         (println "fail on" ?transmission "for model" ?model "on suffix" ?suffix))
 
 (defn run-examples []
   (let [session (-> (mk-session 'car-configurator.suffix-parser)
-                    (insert (->Suffix :auris :diesel :automatic :black))
-                    (insert (->Suffix :auris :diesel :manual :red))
-                    (insert (->Suffix :auris :petrol :manual :black)))]
-    (-> session
-        (fire-rules)
-        (validate!))))
+                    (insert-all suffixes)
+                    ; and some bad ones
+                    (insert (->Suffix :somename :diesel :bizarro :red))
+                    (insert (->Suffix :somename :hybrid :automatic :red))
+                    (insert (->Suffix :somename :diesel :manual :yellow))
+                    )]
+    (-> session ((time fire-rules)))))
 
 (run-examples)
-
-; or...
-
-(def auris #{{:model :auris :fuel :diesel :transmission :automatic :colour :black}
-             {:model :auris :fuel :diesel :transmission :manual :colour :black}
-             {:model :auris :fuel :diesel :transmission :automatic :colour :red}
-             {:model :auris :fuel :diesel :transmission :manual :colour :red}})
-
-(clojure.set/project auris [:transmission])
 
 ; and this seems nicer
 
