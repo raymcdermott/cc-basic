@@ -45,6 +45,9 @@
 
 (run-examples)
 
+; gives
+; Transmission (#{:manual :automatic})
+
 ; or...
 
 (def auris #{{:model :auris :fuel :diesel :transmission :automatic :colour :black}
@@ -54,5 +57,18 @@
 
 (clojure.set/project auris [:transmission])
 
-; and this seems nicer
+; gives
+; #{{:transmission :automatic} {:transmission :manual}}
+
+; so ... to just get the values
+
+(map #(:transmission %) (clojure.set/project auris [:transmission]))
+
+; gives
+; (:automatic :manual)
+
+; and so while the Clara approach works
+; the Clojure approach seems more fitting - less code, less baggage
+; and we are just looking for data in this case anyway that will eventually
+; feed the rules engine
 
