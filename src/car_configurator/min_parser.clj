@@ -1,9 +1,12 @@
 (ns car-configurator.min-parser
   (:refer-clojure :exclude [==])
-  (:require [clara.rules.accumulators :as acc]
+  (:require [clojure.set :as set]
+            [clara.rules.accumulators :as acc]
             [clara.rules :refer :all]))
 
 (defrecord InvalidOption [field message])
+
+(defrecord ValidFuel [fuel])
 
 (defrecord Suffix [model fuel transmission colour])
 
@@ -14,9 +17,17 @@
                         {:model :somename :fuel :diesel :transmission :automatic :colour :red}
                         {:model :somename :fuel :diesel :transmission :manual :colour :red}])
 
-(def possible-fuels (set (map #(:fuel %) somename-suffixes)))
-(def possible-colours (set (map #(:colour %) somename-suffixes)))
-(def possible-transmissions (set (map #(:transmission %) somename-suffixes)))
+; base data as 'good' data into the fact space
+(def suffixes (map #(->Suffix (:model %)
+                              (:fuel %)
+                              (:transmission %)
+                              (:colour %)) somename-suffixes))
+
+(def valid-fuels (set (map #(:fuel %) somename-suffixes)))
+
+;(def colours (map #(->Colour (:model %) (:colour %)) somename-suffixes))
+
+;(def transmissions (map #(->Transmission (:model %) (:transmission %)) somename-suffixes))
 
 ;(defrule valid-fuel
 ;         "Transmissions must be in the allowed set"
@@ -41,25 +52,22 @@
 ;         =>
 ;         (println "fail on" ?transmission "for model" ?model "on suffix" ?suffix))
 
-; base data as 'good' data into the fact space
-(def suffixes (map #(->Suffix (:model %) (:fuel %) (:transmission %) (:colour %)) somename-suffixes))
+(defrule check-valid-fuel
+         "Inserts an InvalidOption fact if the model presents an invalid fuel."
+         [?fuel-count <- (acc/distinct :fuel) :from [Suffix (== ?fuel fuel)]]
+         [:test (not (empty? (set/difference ?fuel-count valid-fuels)))]
+         =>
+         (println "fails on" ?fuel))
 
 (defn run-examples []
-  (let [rules '[; Rules structure must be quoted so Clara can evaluate it...
-                {:name "valid-fuel"
-                 :lhs  [{:fact-binding :?suffix
-                         :type         car_configurator.min_parser.Suffix
-                         :constraints  [(== ?model model)
-                                        (== ?fuel fuel)
-                                        (not (contains? car-configurator.min-parser/possible-fuels ?fuel))]}]
-                 :rhs  (println "fail on" ?fuel "for model" ?model "on suffix" ?suffix)}
-                ]
-        session (-> (mk-session rules)
+  (let [session (-> (mk-session 'car-configurator.min-parser)
                     (insert-all suffixes)
-                    ; and some bad ones
-                    (insert (->Suffix :somename :diesel :bizarro :red))
-                    (insert (->Suffix :somename :hybrid :automatic :red))
-                    (insert (->Suffix :somename :diesel :manual :yellow)))]
+                    (insert-all valid-fuels)
+                    ; and a bad one
+                    (insert (->Suffix :somename
+                                      :jibberish
+                                      :manual
+                                      :red)))]
     (time (fire-rules session))))
 
 (run-examples)
