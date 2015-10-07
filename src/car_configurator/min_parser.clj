@@ -45,25 +45,33 @@
 
 (run-examples)
 
-(defn valid-option [key]
+(defn valid-option-accum [key]
   (acc/distinct key))
 
-(defn partial= [collection]
+(defn partial-eq [collection]
   (partial = collection))
 
-(def partial-fuel (valid-option :fuel))
-(def partial-eq-fuels (partial= valid-fuels))
+(defn partial-invalid-option [key]
+  (partial ->InvalidOption key))
+
+; TODO.... now generate collections, rules bindings and RHS to create InvalidOption
+; constraints and rules are all generated!!
+
+(def fuel-accum (valid-option-accum :fuel))
+(def partial-eq-fuels (partial-eq valid-fuels))
 
 (defn run-examples2 []
   (let [rules '[; Rules structure must be quoted so Clara can evaluate it...
 
-                {:doc  "This is the same rule as check-valid-fuel above but defined as data"
-                 :lhs  [{:result-binding :?presented-options
-                         :accumulator    partial-fuel
-                         :from           {:type        car_configurator.min_parser.Suffix
-                                          :constraints []}}
-                        {:constraints [(not (partial-eq-fuels ?presented-options))]}]
-                 :rhs  (println "Fails on x:" (set/difference ?presented-options valid-fuels))}
+                {:doc "This is the same rule as check-valid-fuel above but defined as data"
+                 :lhs [{:result-binding :?presented-options
+                        :accumulator    fuel-accum
+                        :from           {:type        car_configurator.min_parser.Suffix
+                                         :constraints []}}
+                       {:constraints [(not (partial-eq-fuels ?presented-options))]}]
+                 :rhs (partial-invalid-option "fail")
+                 ; TODO - defquery
+                 }
 
                 {:lhs  [{:result-binding :?presented-options
                          :accumulator    (acc/distinct :colour)
