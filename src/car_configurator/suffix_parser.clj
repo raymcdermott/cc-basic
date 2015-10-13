@@ -34,23 +34,6 @@
 ; also add it as 'good' data into the fact space
 (def suffixes (map #(->Suffix (:model %) (:fuel %) (:transmission %) (:colour %)) somename-suffixes))
 
-(defmacro defvalid
-  "Generates a rule to remove the boiler plate of testing"
-  [scope-name]
-  (let [sym-scope# (symbol scope-name)
-         possible-scopes# (symbol (str "possible-" scope-name "s"))
-         q-scope# (symbol (str "?" scope-name))
-         doc# (str "rule generated for " scope-name)]
-
-     `(defrule sym-scope#
-              doc#
-              [?suffix <- Suffix (not (contains? possible-scopes# ~@scope-name))
-               (== ?model model)
-               (== q-scope# ~@scope-name)]
-              =>
-              (println "fail on" q-scope# "for model" ?model "on suffix" ?suffix))))
-
-
 ; if this is a pattern, maybe myFirstMacro ;-) ... see above
 (defrule valid-fuel
          "Transmissions must be in the allowed set"

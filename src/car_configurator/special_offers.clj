@@ -1,21 +1,8 @@
-(ns car-configurator.partial-configuration
+(ns car-configurator.special-offers
   (:refer-clojure :exclude [==])
   (:require [clojure.set :as set]
             [clara.rules.accumulators :as acc]
             [clara.rules :refer :all]))
-
-; get all the models / ssn / kata combinations
-
-; get the suffixes for each model
-
-; get the equipment for each suffix (configurable bill of materials)
-
-; ok so now we have the configurable bill of materials for each suffix ...
-
-; can we use Clara to detect the truth about the truth for each piece of
-; equipment across the suffixes for this model?
-
-; Clara accumulators are for testing collections
 
 (defrecord InvalidOption [field message])
 
@@ -68,6 +55,8 @@
 
 ; the partial functions are used within the data to implement the constraints
 
+; with a little guile these rules could be generated rather than written
+
 (def fuel-rule-as-data
   '{:lhs [{:result-binding :?presented-options
            :accumulator    (acc/distinct :fuel)
@@ -93,6 +82,16 @@
     :rhs (println "Bad config:" (set/difference valid-transmissions ?presented-options))})
 
 (def rules (vector fuel-rule-as-data colour-rule-as-data transmission-rule-as-data))
+
+; now write some standard rules that provide data about special offers
+; time of year, colour of car and it's fuel type ... we are keen on selling diesels these days
+
+(defrule diesel-offer
+         "We will offer a special offer for black diesels in the month of November 2015"
+
+
+         )
+
 
 (defn run-rules-as-data []
   (let [session (-> (mk-session rules)

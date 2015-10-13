@@ -33,7 +33,7 @@
          [?fuel-count <- (acc/distinct :fuel) :from [PartiallyConfiguredCar]]
          [:test (not (empty? (set/difference ?fuel-count valid-fuels)))]
          =>
-         (println "fails on" (set/difference ?fuel-count valid-fuels)))
+         (->InvalidOption :fuel (str "fails on" (set/difference ?fuel-count valid-fuels))))
 
 (defn run-examples []
   (let [session (-> (mk-session 'car-configurator.min-parser)
