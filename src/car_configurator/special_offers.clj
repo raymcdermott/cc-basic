@@ -1,12 +1,16 @@
 (ns car-configurator.special-offers
-  (:refer-clojure :exclude [==])
-  (:require [clojure.set :as set]
-            [clara.rules.accumulators :as acc]
-            [clara.rules :refer :all]))
+    (:refer-clojure :exclude [==])
+    (:require [clojure.set :as set]
+      [clara.rules.accumulators :as acc]
+      [clara.rules :refer :all]))
 
 (defrecord InvalidOption [field message])
 
 (defrecord ValidFuel [fuel])
+
+(defrecord ConfigurationDate [year month day])
+
+(defrecord Promotion [reason type])
 
 (defrecord PartiallyConfiguredCar [model fuel transmission colour])
 
@@ -25,33 +29,33 @@
 
 ; base functions
 (defn partial-diff [collection]
-  (let [func (fn [valid-range presented-range]
-               (set/difference presented-range valid-range))]
-    (partial func collection)))
+      (let [func (fn [valid-range presented-range]
+                     (set/difference presented-range valid-range))]
+           (partial func collection)))
 
 (defn partial-validity-check [collection]
-  (let [func (fn [valid-range presented-range]
-               (not (= valid-range presented-range)))]
-    (partial func collection)))
+      (let [func (fn [valid-range presented-range]
+                     (not (= valid-range presented-range)))]
+           (partial func collection)))
 
 ; so now map to produce partials programmatically
 (defn partials-map [key]
-  (let [coll (set (map #(key %) partial-configurations))
-        differ (partial-diff coll)
-        validator (partial-validity-check coll)]
-    {:key       key
-     :differ    differ
-     :validator validator}))
+      (let [coll (set (map #(key %) partial-configurations))
+            differ (partial-diff coll)
+            validator (partial-validity-check coll)]
+           {:key       key
+            :differ    differ
+            :validator validator}))
 
 (defn generate-partials [keys]
-  (set (map #(partials-map %) keys)))
+      (set (map #(partials-map %) keys)))
 
 (def validity-keys #{:fuel :colour :transmission})
 
 (def partials (generate-partials validity-keys))
 
 (defn partial-finder [partial-key validity-key]
-  (partial-key (first (set/select #(= (:key %) validity-key) partials))))
+      (partial-key (first (set/select #(= (:key %) validity-key) partials))))
 
 ; the partial functions are used within the data to implement the constraints
 
@@ -60,26 +64,26 @@
 (def fuel-rule-as-data
   '{:lhs [{:result-binding :?presented-options
            :accumulator    (acc/distinct :fuel)
-           :from           {:type        car_configurator.partial_configuration.PartiallyConfiguredCar
+           :from           {:type        car_configurator.special_offers.PartiallyConfiguredCar
                             :constraints []}}
           {:constraints [((partial-finder :validator :fuel) ?presented-options)]}]
-    :rhs (println "Fails on fuels all partial everywhere:" ((partial-finder :differ :fuel) ?presented-options))})
+    :rhs (println "Fails on fuels:" ((partial-finder :differ :fuel) ?presented-options))})
 
 (def colour-rule-as-data
   '{:lhs [{:result-binding :?presented-options
            :accumulator    (acc/distinct :colour)
-           :from           {:type        car_configurator.partial_configuration.PartiallyConfiguredCar
+           :from           {:type        car_configurator.special_offers.PartiallyConfiguredCar
                             :constraints []}}
           {:constraints [((partial-finder :validator :colour) ?presented-options)]}]
-    :rhs (println "Fails on colours all partial everywhere:" ((partial-finder :differ :colour) ?presented-options))})
+    :rhs (println "Fails on colours:" ((partial-finder :differ :colour) ?presented-options))})
 
 (def transmission-rule-as-data
   '{:lhs [{:result-binding :?presented-options
            :accumulator    (acc/distinct :transmission)
-           :from           {:type        car_configurator.partial_configuration.PartiallyConfiguredCar
+           :from           {:type        car_configurator.special_offers.PartiallyConfiguredCar
                             :constraints []}}
-          {:constraints [(set/difference valid-transmissions ?presented-options)]}]
-    :rhs (println "Bad config:" (set/difference valid-transmissions ?presented-options))})
+          {:constraints [((partial-finder :validator :transmission) ?presented-options)]}]
+    :rhs (println "Fails on transmission:" ((partial-finder :differ :transmission) ?presented-options))})
 
 (def rules (vector fuel-rule-as-data colour-rule-as-data transmission-rule-as-data))
 
@@ -87,20 +91,36 @@
 ; time of year, colour of car and it's fuel type ... we are keen on selling diesels these days
 
 (defrule diesel-offer
-         "We will offer a special offer for black diesels in the month of November 2015"
+         "We will give free floor mats on black, automatic diesels in the month of November 2015"
+         [ConfigurationDate (= :november month)]
+         [PartiallyConfiguredCar (= :diesel fuel) (= :automatic transmission) (= :black colour)
+          ]
+         =>
+         (insert! (->Promotion :free-floormats-month :floormats)))
 
+(defquery get-promotions
+          "Query to find promotions for the purchase."
+          []
+          [?promotion <- Promotion])
 
-         )
+(defn print-promotions!
+      "Prints promotions from the given session"
+      [session]
 
+      (doseq [{{reason :reason type :type} :?promotion} (query session get-promotions)]
+             (println "Free" type "for promotion" reason))
+
+      session)
 
 (defn run-rules-as-data []
-  (let [session (-> (mk-session rules)
-                    (insert-all suffixes)
-                    ; and some bad ones
-                    (insert (->PartiallyConfiguredCar :somename :diesel :bizarro :red))
-                    (insert (->PartiallyConfiguredCar :somename :hybrid :automatic :red))
-                    (insert (->PartiallyConfiguredCar :somename :diesel :manual :yellow))
-                    )]
-    (fire-rules session)))
+      (let [session (-> (mk-session rules 'car-configurator.special-offers)
+                        (insert-all suffixes)
+                        (insert (->ConfigurationDate 2015 :november 10))
+                        ; and some bad ones
+                        (insert (->PartiallyConfiguredCar :somename :diesel :bizarro :red))
+                        (insert (->PartiallyConfiguredCar :somename :hybrid :automatic :red))
+                        (insert (->PartiallyConfiguredCar :somename :diesel :manual :yellow)))]
+           (fire-rules session)
+           (print-promotions! session)))
 
 (run-rules-as-data)

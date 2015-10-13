@@ -47,21 +47,6 @@
                (not (= valid-range presented-range)))]
     (partial func collection)))
 
-; data maps
-;(def valid-fuels (set (map #(:fuel %) partial-configurations)))
-;(def valid-colours (set (map #(:colour %) partial-configurations)))
-;(def valid-transmissions (set (map #(:transmission %) partial-configurations)))
-;
-;; partial functions that combine the base functions and data maps
-;(def partial-fuel-diff (partial-diff valid-fuels))
-;(def partial-colours-diff (partial-diff valid-colours))
-;(def partial-transmission-diff (partial-diff valid-transmissions))
-;
-;(def partial-fuel-validity (partial-validity-check valid-fuels))
-;(def partial-colour-validity (partial-validity-check valid-colours))
-;(def partial-transmission-validity (partial-validity-check valid-transmissions))
-
-; so now at least come up with a map to produce these partials programmatically
 (defn partials-map [key]
   (let [coll (set (map #(key %) partial-configurations))
         differ (partial-diff coll)
