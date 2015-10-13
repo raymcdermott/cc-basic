@@ -73,35 +73,38 @@
 (defn generate-partials [keys]
   (set (map #(partials-map %) keys)))
 
-(def keys #{:model :fuel :transmission})
+(def option-keys #{:colour :fuel :transmission})
 
-(def partials (generate-partials keys))
+(def partials (generate-partials option-keys))
+
+(defn find-partial [fn-name key-name]
+  (fn-name (first (clojure.set/select #(= (:key %) key-name) partials))))
 
 ; the partial functions are used within the data to implement the constraints
 
 (def fuel-rule-as-data
   '{:lhs [{:result-binding :?presented-options
            :accumulator    (acc/distinct :fuel)
-           :from           {:type        car_configurator.min_parser.PartiallyConfiguredCar
+           :from           {:type        car_configurator.partial_configuration.PartiallyConfiguredCar
                             :constraints []}}
-          {:constraints [(partial-fuel-validity ?presented-options)]}]
-    :rhs (println "Fails on fuels all partial everywhere:" (partial-fuel-diff ?presented-options))})
+          {:constraints [((find-partial :validator :fuel) ?presented-options)]}]
+    :rhs (println "Fails on fuels all partial everywhere:" ((find-partial :differ :fuel) ?presented-options))})
 
 (def colour-rule-as-data
   '{:lhs [{:result-binding :?presented-options
            :accumulator    (acc/distinct :colour)
-           :from           {:type        car_configurator.min_parser.PartiallyConfiguredCar
+           :from           {:type        car_configurator.partial_configuration.PartiallyConfiguredCar
                             :constraints []}}
-          {:constraints [(partial-colour-validity ?presented-options)]}]
-    :rhs (println "Fails on colours all partial everywhere:" (partial-colours-diff ?presented-options))})
+          {:constraints [((find-partial :validator :colour) ?presented-options)]}]
+    :rhs (println "Fails on colours all partial everywhere:" ((find-partial :differ :colour) ?presented-options))})
 
 (def transmission-rule-as-data
   '{:lhs [{:result-binding :?presented-options
            :accumulator    (acc/distinct :transmission)
-           :from           {:type        car_configurator.min_parser.PartiallyConfiguredCar
+           :from           {:type        car_configurator.partial_configuration.PartiallyConfiguredCar
                             :constraints []}}
-          {:constraints [(partial-transmission-validity ?presented-options)]}]
-    :rhs (println "Fails on simplified partial diffz:" (partial-transmission-diff ?presented-options))})
+          {:constraints [((find-partial :validator :transmission) ?presented-options)]}]
+    :rhs (println "Fails on simplified partial diffz:" ((find-partial :differ :transmission) ?presented-options))})
 
 (def rules (vector fuel-rule-as-data colour-rule-as-data transmission-rule-as-data))
 
@@ -111,8 +114,7 @@
                     ; and some bad ones
                     (insert (->PartiallyConfiguredCar :somename :diesel :bizarro :red))
                     (insert (->PartiallyConfiguredCar :somename :hybrid :automatic :red))
-                    (insert (->PartiallyConfiguredCar :somename :diesel :manual :yellow))
-                    )]
+                    (insert (->PartiallyConfiguredCar :somename :diesel :manual :yellow)))]
     (fire-rules session)))
 
 (run-rules-as-data)
